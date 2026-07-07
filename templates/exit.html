@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Control - Estacionamiento{% endblock %}
+{% block extra_style %}
+header h1{color:#f0883e}
+header h1 span{color:#58a6ff}
+.stat-card.available .value{color:#3fb950}
+.stat-card.occupied .value{color:#f85149}
+.stat-card.revenue .value{color:#d2a8ff}
+.stat-card.rate .value{color:#3fb950;font-size:1.8rem}
+.cell.spot.available{opacity:.5}
+.cell.spot .plate{font-size:0.65rem;font-weight:600;color:#f0f6fc;margin-top:1px;background:rgba(255,255,255,.1);padding:1px 4px;border-radius:3px;letter-spacing:1px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cell.spot .cost{font-size:0.75rem;font-weight:700;color:#ffa657;margin-top:1px}
+.cell.spot .entry-time{font-size:0.6rem;color:#58a6ff;margin-top:1px}
+.manual-bar{background:#161b22;padding:12px 30px;display:flex;gap:10px;align-items:center;border-top:1px solid #30363d;border-bottom:1px solid #30363d}
+.manual-bar label{color:#8b949e;font-size:0.9rem;text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
+.manual-bar input{background:#0d1117;border:2px solid #30363d;border-radius:8px;padding:10px 15px;font-size:1.3rem;color:#f0f6fc;font-family:monospace;letter-spacing:3px;text-transform:uppercase;flex:1;max-width:300px;outline:none}
+.manual-bar input:focus{border-color:#58a6ff}
+.manual-bar .btn-entry{background:#3fb950;border:none;border-radius:8px;padding:10px 25px;font-size:1rem;font-weight:700;color:#0d1117;cursor:pointer}
+.manual-bar .btn-entry:hover{background:#4cdb61}
+.manual-bar .btn-exit{background:#f0883e;border:none;border-radius:8px;padding:10px 25px;font-size:1rem;font-weight:700;color:#0d1117;cursor:pointer}
+.manual-bar .btn-exit:hover{background:#ffa657}
+.manual-bar .result{font-size:1rem;font-weight:600;margin-left:auto;white-space:nowrap}
+footer .rate{color:#e6edf3;font-weight:600}
+{% endblock %}
+{% block header_title %}🅿 <span>Control</span> — Estacionamiento{% endblock %}
+{% block stats_bar %}
+<div class="stats-bar">
+  <div class="stat-card available">
+    <div class="label">Disponibles</div>
+    <div class="value" id="available-count">--</div>
+  </div>
+  <div class="stat-card occupied">
+    <div class="label">Ocupados</div>
+    <div class="value" id="occupied-count">--</div>
+  </div>
+  <div class="stat-card rate">
+    <div class="label">Tarifa</div>
+    <div class="value" id="rate-display">$50.00/hr</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Tiempo gratis</div>
+    <div class="value" id="grace-display">15 min</div>
+  </div>
+  <div class="stat-card revenue">
+    <div class="label">Por cobrar</div>
+    <div class="value" id="revenue-card">$0</div>
+  </div>
+  <div class="stat-card" style="border-color:#d2a8ff">
+    <div class="label">Recaudado hoy</div>
+    <div class="value" style="color:#d2a8ff" id="daily-revenue">$0</div>
+  </div>
+</div>
+{% endblock %}
+{% block main %}
+<div class="manual-bar" style="border-bottom:none">
+  <label>Ingreso manual</label>
+  <input type="text" id="entry-plate" placeholder="PLACA" maxlength="10" onkeydown="if(event.key==='Enter')manualEntry()">
+  <button class="btn-entry" onclick="manualEntry()">INGRESAR</button>
+  <span class="result" id="entry-result"></span>
+</div>
+<div class="manual-bar">
+  <label>Salida manual</label>
+  <input type="text" id="exit-plate" placeholder="PLACA" maxlength="10" onkeydown="if(event.key==='Enter')manualExit()">
+  <button class="btn-exit" onclick="manualExit()">SALIDA</button>
+  <button class="btn-exit" onclick="manualExitLost()" style="background:#d2a8ff;color:#0d1117;font-weight:700;border:none;border-radius:8px;padding:10px 25px;font-size:1rem;cursor:pointer">BOLETO PERDIDO $500</button>
+  <span class="result" id="exit-result"></span>
+</div>
+<div class="layout-wrap" id="layout-wrap">
+  <div class="grid-title">Cargando...</div>
+  <div class="layout-grid" id="layout-grid"></div>
+</div>
+{% endblock %}
+{% block footer_content %}Control manual — Tarifa: <span class="rate" id="rate-footer">$50.00/hr</span> | Semana: <span id="week-revenue">$0</span> | Mes: <span id="month-revenue">$0</span>{% endblock %}
+{% block scripts %}
+let layoutData = null;
+let spotsMap = {};
+let rate = 50, grace = 15;
+
+async function manualEntry() {
+  const plate = document.getElementById('entry-plate').value.trim().toUpperCase();
+  const res = document.getElementById('entry-result');
+  if (!plate) { res.textContent = 'Ingrese placa'; res.style.color='#f85149'; return; }
+  res.textContent = 'Procesando...'; res.style.color='#f0883e';
+  try {
+    const r = await fetch('/api/manual-entry', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({plate: plate})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      res.textContent = 'Lugar #' + d.spot_number + ' asignado a ' + d.plate;
+      res.style.color = '#3fb950';
+      document.getElementById('entry-plate').value = '';
+    } else {
+      res.textContent = d.error || 'Error';
+      res.style.color = '#f85149';
+    }
+  } catch(e) {
+    res.textContent = 'Error de conexion'; res.style.color='#f85149';
+  }
+}
+
+async function manualExit() {
+  const plate = document.getElementById('exit-plate').value.trim().toUpperCase();
+  const res = document.getElementById('exit-result');
+  if (!plate) { res.textContent = 'Ingrese placa'; res.style.color='#f85149'; return; }
+  res.textContent = 'Procesando...'; res.style.color='#f0883e';
+  try {
+    const r = await fetch('/api/manual-exit', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({plate: plate})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      const graceMsg = d.grace_used ? ' (tiempo gratis)' : '';
+      res.innerHTML = 'Lugar #' + d.spot + ' liberado - $' + d.total.toFixed(2) + graceMsg + ' <a href="/ticket/' + (d.record_id || '') + '" target="_blank" style="color:#58a6ff;font-weight:bold;text-decoration:none">🧾 TICKET</a>';
+      res.style.color = '#3fb950';
+      document.getElementById('exit-plate').value = '';
+    } else {
+      res.textContent = d.error || 'Error';
+      res.style.color = '#f85149';
+    }
+  } catch(e) {
+    res.textContent = 'Error de conexion'; res.style.color='#f85149';
+  }
+}
+
+async function manualExitLost() {
+  const plate = document.getElementById('exit-plate').value.trim().toUpperCase();
+  const res = document.getElementById('exit-result');
+  if (!plate) { res.textContent = 'Ingrese placa'; res.style.color='#f85149'; return; }
+  res.textContent = 'Procesando...'; res.style.color='#d2a8ff';
+  try {
+    const r = await fetch('/api/manual-exit-lost', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({plate: plate})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      res.innerHTML = 'BOLETO PERDIDO - Lugar #' + d.spot + ' - $500 <a href="/ticket/' + (d.record_id || '') + '" target="_blank" style="color:#58a6ff;font-weight:bold;text-decoration:none">🧾 TICKET</a>';
+      res.style.color = '#d2a8ff';
+      document.getElementById('exit-plate').value = '';
+    } else {
+      res.textContent = d.error || 'Error';
+      res.style.color = '#f85149';
+    }
+  } catch(e) {
+    res.textContent = 'Error de conexion'; res.style.color='#f85149';
+  }
+}
+
+function selectExit(plate) {
+  document.getElementById('exit-plate').value = plate;
+  manualExit();
+}
+
+function renderMatrix() {
+  const grid = document.getElementById('layout-grid');
+  const title = document.querySelector('.grid-title');
+  if (!layoutData || !layoutData.grid || layoutData.grid.length === 0) {
+    grid.innerHTML = ''; title.textContent = 'Sin configuracion de layout';
+    return;
+  }
+  const rows = layoutData.rows, cols = layoutData.cols;
+  title.textContent = layoutData.label || 'Estacionamiento';
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+
+  let html = '';
+  let avail = 0, occ = 0;
+  let totalRev = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const val = layoutData.grid[r][c];
+      if (val === 0) {
+        html += '<div class="cell empty"></div>';
+      } else if (val === -1) {
+        html += '<div class="cell path"></div>';
+      } else {
+        const spot = spotsMap[val] || { status: 'available' };
+        const isAvail = spot.status === 'available';
+        if (isAvail) avail++; else {
+          occ++;
+          totalRev += spot.current_cost || 0;
+        }
+        if (!isAvail) {
+          const plate = spot.plate_number || '';
+          const cost = spot.current_cost || 0;
+          const entryT = spot.entry_time || '';
+          const timeDisplay = entryT.substring(11, 16);
+          const dateDisplay = entryT.substring(8, 10) + '/' + entryT.substring(5, 7);
+          html += '<div class="cell spot occupied" onclick="selectExit(\'' + plate.replace(/'/g, "\\'") + '\')" style="cursor:pointer"><div class="num">' + val + '</div><div class="plate">' + plate + '</div><div class="entry-time">' + timeDisplay + ' ' + dateDisplay + '</div><div class="cost">$' + cost.toFixed(2) + '</div></div>';
+        } else {
+          html += '<div class="cell spot available"><div class="num">' + val + '</div><div class="status-text">LIBRE</div></div>';
+        }
+      }
+    }
+  }
+  grid.innerHTML = html;
+  document.getElementById('available-count').textContent = avail;
+  document.getElementById('occupied-count').textContent = occ;
+  document.getElementById('revenue-card').textContent = totalRev > 0 ? '$' + totalRev.toFixed(2) : '$0';
+}
+
+async function fetchData() {
+  try {
+    const [layoutR, spotsR, cfgR, revR] = await Promise.all([
+      fetch('/api/layout'), fetch('/api/spots'), fetch('/api/config'), fetch('/api/revenue')
+    ]);
+    const layout = await layoutR.json();
+    const spots = await spotsR.json();
+    const cfg = await cfgR.json();
+    const rev = await revR.json();
+
+    if (!layout.error) layoutData = layout;
+    if (!spots.error) {
+      spotsMap = {};
+      spots.forEach(function(s) { spotsMap[s.spot_number] = s; });
+    }
+    if (cfg.hourly_rate) rate = parseFloat(cfg.hourly_rate);
+    if (cfg.grace_period_minutes !== undefined && cfg.grace_period_minutes !== null) grace = cfg.grace_period_minutes;
+    document.getElementById('rate-display').textContent = '$' + rate.toFixed(2) + '/hr';
+    document.getElementById('rate-footer').textContent = '$' + rate.toFixed(2) + '/hr';
+    document.getElementById('grace-display').textContent = grace + ' min';
+
+    if (layoutData) renderMatrix();
+
+    if (rev && rev.today !== undefined) {
+      document.getElementById('daily-revenue').textContent = '$' + parseFloat(rev.today).toFixed(2);
+      document.getElementById('week-revenue').textContent = '$' + parseFloat(rev.week).toFixed(2);
+      document.getElementById('month-revenue').textContent = '$' + parseFloat(rev.month).toFixed(2);
+    }
+  } catch(e) {}
+}
+
+clock();
+fetchData();
+setInterval(clock, 1000);
+setInterval(fetchData, 3000);
+{% endblock %}

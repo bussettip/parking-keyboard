@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Ticket - Estacionamiento</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Courier New',monospace;background:#fff;color:#000;padding:20px;max-width:350px;margin:0 auto}
+.ticket{border:2px dashed #333;padding:20px}
+h1{font-size:1.2rem;text-align:center;margin-bottom:5px}
+h2{font-size:0.9rem;text-align:center;color:#666;margin-bottom:15px;font-weight:normal}
+.info{margin:10px 0;font-size:0.85rem}
+.info div{margin:4px 0}
+.label{color:#888}
+.total{font-size:1.3rem;font-weight:bold;text-align:center;margin:12px 0;padding:8px;background:#f0f0f0;border-radius:4px}
+.qr{text-align:center;margin:12px 0}
+.qr img{width:160px;height:160px}
+.footer{text-align:center;font-size:0.75rem;color:#888;margin-top:10px;border-top:1px dashed #ccc;padding-top:8px}
+.buttons{text-align:center;margin-top:15px}
+.buttons button{background:#0066cc;color:#fff;border:none;padding:10px 30px;font-size:1rem;border-radius:6px;cursor:pointer}
+.buttons button:hover{background:#0052a3}
+@media print{body{padding:10px}.buttons{display:none}}
+</style>
+</head>
+<body>
+<div class="ticket">
+  <h1>ESTACIONAMIENTO</h1>
+  <h2>Ticket de Salida</h2>
+
+  <div class="info">
+    <div><span class="label">Folio:</span> <strong id="ticket-id">---</strong></div>
+    <div><span class="label">Placa:</span> <strong id="ticket-plate">---</strong></div>
+    <div><span class="label">Lugar:</span> <span id="ticket-spot">---</span></div>
+    <div><span class="label">Entrada:</span> <span id="ticket-entry">---</span></div>
+    <div><span class="label">Salida:</span> <span id="ticket-exit">---</span></div>
+    <div><span class="label">Tiempo:</span> <span id="ticket-duration">---</span></div>
+  </div>
+
+  <div class="total" id="ticket-total">$0.00</div>
+
+  <div class="qr" id="ticket-qr">
+    <p style="color:#888;font-size:0.8rem">Cargando QR...</p>
+  </div>
+
+  <div class="footer">
+    Gracias por su preferencia<br>
+    Este ticket es comprobante de pago
+  </div>
+</div>
+
+<div class="buttons">
+  <button onclick="window.print()">🖨 IMPRIMIR</button>
+  <button onclick="window.close()" style="background:#666;margin-left:10px">CERRAR</button>
+</div>
+
+<script>
+(async function() {
+  const recordId = window.location.pathname.split('/').pop();
+  if (!recordId || recordId === 'ticket') return;
+  try {
+    const r = await fetch('/api/ticket/' + recordId);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    document.getElementById('ticket-id').textContent = d.id || '---';
+    document.getElementById('ticket-plate').textContent = d.plate || '---';
+    document.getElementById('ticket-spot').textContent = '# ' + (d.spot || '---');
+    document.getElementById('ticket-entry').textContent = d.entry || '---';
+    document.getElementById('ticket-exit').textContent = d.exit || '---';
+    document.getElementById('ticket-duration').textContent = d.duration || '---';
+    document.getElementById('ticket-total').textContent = '$' + (parseFloat(d.total) || 0).toFixed(2);
+
+    const ticketUrl = window.location.origin + '/ticket/' + recordId;
+    document.getElementById('ticket-qr').innerHTML = '<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(ticketUrl) + '" alt="QR">';
+  } catch(e) {
+    document.getElementById('ticket-qr').innerHTML = '<p style="color:#c00">Error: ' + e.message + '</p>';
+  }
+})();
+</script>
+</body>
+</html>

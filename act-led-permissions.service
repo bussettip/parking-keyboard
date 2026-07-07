@@ -1,0 +1,12 @@
+[Unit]
+Description=Permitir escritura del LED ACT
+After=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/chmod 666 /sys/class/leds/ACT/brightness /sys/class/leds/ACT/trigger
+ExecStartPost=/bin/sh -c 'echo none > /sys/class/leds/ACT/trigger'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

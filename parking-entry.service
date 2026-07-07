@@ -1,0 +1,14 @@
+[Unit]
+Description=Sistema Parking - ENTRADA
+After=network.target mysql.service mosquitto.service
+Wants=mysql.service mosquitto.service
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pablo/ocr_python/parking_system_roboflow.py --no-preview
+WorkingDirectory=/home/pablo/ocr_python
+Restart=always
+RestartSec=5
+User=pablo
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Entrada - Estacionamiento{% endblock %}
+{% block extra_style %}
+header h1{color:#58a6ff}
+header h1 span{color:#f0883e}
+.stat-card.available .value{color:#3fb950}
+.stat-card.occupied .value{color:#f85149}
+.cell.spot.occupied{opacity:.6}
+.suggest-card{background:#1a3a1a;border:3px solid #3fb950;border-radius:16px;padding:25px;margin:10px 30px;text-align:center;animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(63,185,80,.4)}50%{box-shadow:0 0 0 20px rgba(63,185,80,0)}}
+.suggest-card .label{color:#8b949e;font-size:0.9rem;text-transform:uppercase;letter-spacing:1px}
+.suggest-card .spot-num{font-size:5rem;font-weight:800;color:#3fb950;line-height:1.1;margin:5px 0}
+.suggest-card .sub{color:#e6edf3;font-size:1.1rem}
+.lleno-card{background:#3d1a1a;border:3px solid #f85149;border-radius:16px;padding:25px;margin:10px 30px;text-align:center}
+.lleno-card .label{font-size:2rem;font-weight:700;color:#f85149}
+.cell.spot.suggested{border-color:#3fb950;box-shadow:0 0 20px rgba(63,185,80,.6);animation:pulse 1s ease-in-out infinite}
+.manual-bar{background:#161b22;padding:10px 30px;display:flex;gap:10px;align-items:center;border-top:1px solid #30363d;border-bottom:1px solid #30363d}
+.manual-bar label{color:#8b949e;font-size:0.85rem;text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
+.manual-bar input{background:#0d1117;border:2px solid #30363d;border-radius:8px;padding:8px 15px;font-size:1.2rem;color:#f0f6fc;font-family:monospace;letter-spacing:3px;text-transform:uppercase;flex:1;max-width:280px;outline:none}
+.manual-bar input:focus{border-color:#58a6ff}
+.manual-bar button{background:#3fb950;border:none;border-radius:8px;padding:8px 25px;font-size:0.95rem;font-weight:700;color:#0d1117;cursor:pointer}
+.manual-bar button:hover{background:#4cdb61}
+.manual-bar .result{font-size:1rem;font-weight:600;margin-left:auto;white-space:nowrap}
+{% endblock %}
+{% block header_title %}🅿 <span>Entrada</span> — Estacionamiento{% endblock %}
+{% block stats_bar %}
+<div class="stats-bar">
+  <div class="stat-card available">
+    <div class="label">Disponibles</div>
+    <div class="value" id="available-count">--</div>
+  </div>
+  <div class="stat-card occupied">
+    <div class="label">Ocupados</div>
+    <div class="value" id="occupied-count">--</div>
+  </div>
+</div>
+{% endblock %}
+{% block main %}
+<div class="manual-bar">
+  <label>Ingreso manual</label>
+  <input type="text" id="manual-plate" placeholder="PLACA" maxlength="10" onkeydown="if(event.key==='Enter')manualEntry()">
+  <button onclick="manualEntry()">INGRESAR</button>
+  <span class="result" id="manual-result"></span>
+</div>
+<div id="suggestion"></div>
+<div class="layout-wrap" id="layout-wrap">
+  <div class="grid-title">Cargando...</div>
+  <div class="layout-grid" id="layout-grid"></div>
+</div>
+{% endblock %}
+{% block footer_content %}Bienvenido — Siga la flecha al lugar asignado{% endblock %}
+{% block scripts %}
+let layoutData = null;
+let spotsMap = {};
+let prevSpotId = null;
+
+async function manualEntry() {
+  const plate = document.getElementById('manual-plate').value.trim().toUpperCase();
+  const res = document.getElementById('manual-result');
+  if (!plate) { res.textContent = 'Ingrese placa'; res.style.color='#f85149'; return; }
+  res.textContent = 'Procesando...'; res.style.color='#f0883e';
+  try {
+    const r = await fetch('/api/manual-entry', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({plate: plate})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      res.textContent = 'Lugar #' + d.spot_number + ' asignado a ' + d.plate;
+      res.style.color = '#3fb950';
+      document.getElementById('manual-plate').value = '';
+    } else {
+      res.textContent = d.error || 'Error';
+      res.style.color = '#f85149';
+    }
+  } catch(e) {
+    res.textContent = 'Error de conexion'; res.style.color='#f85149';
+  }
+}
+
+function renderMatrix() {
+  const grid = document.getElementById('layout-grid');
+  const title = document.querySelector('.grid-title');
+  if (!layoutData || !layoutData.grid || layoutData.grid.length === 0) {
+    grid.innerHTML = ''; title.textContent = 'Sin configuracion de layout';
+    return;
+  }
+  const rows = layoutData.rows, cols = layoutData.cols;
+  title.textContent = layoutData.label || 'Estacionamiento';
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+
+  let html = '';
+  let avail = 0, occ = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const val = layoutData.grid[r][c];
+      if (val === 0) {
+        html += '<div class="cell empty"></div>';
+      } else if (val === -1) {
+        html += '<div class="cell path"></div>';
+      } else {
+        const spot = spotsMap[val] || { status: 'available' };
+        const isAvail = spot.status === 'available';
+        if (isAvail) avail++; else occ++;
+        html += '<div class="cell spot ' + (isAvail ? 'available' : 'occupied') + '"><div class="num">' + val + '</div><div class="status-text">' + (isAvail ? 'LIBRE' : 'OCUPADO') + '</div></div>';
+      }
+    }
+  }
+  grid.innerHTML = html;
+  document.getElementById('available-count').textContent = avail;
+  document.getElementById('occupied-count').textContent = occ;
+}
+
+async function checkLastEntry() {
+  try {
+    const r = await fetch('/api/last-entry');
+    const data = await r.json();
+    const sug = document.getElementById('suggestion');
+    if (!data || !data.spot_number) { sug.innerHTML = ''; return; }
+    if (data.spot_id !== prevSpotId) {
+      prevSpotId = data.spot_id;
+      sug.innerHTML = '<div class="suggest-card"><div class="label">OCUPE EL LUGAR</div><div class="spot-num">#' + data.spot_number + '</div><div class="sub">Placa: ' + (data.plate_number || '---') + '</div></div>';
+    }
+  } catch(e) {}
+}
+
+async function fetchData() {
+  try {
+    const [layoutR, spotsR] = await Promise.all([fetch('/api/layout'), fetch('/api/spots')]);
+    const layout = await layoutR.json();
+    const spots = await spotsR.json();
+    if (!layout.error) layoutData = layout;
+    if (!spots.error) {
+      spotsMap = {};
+      spots.forEach(function(s) { spotsMap[s.spot_number] = s; });
+    }
+    if (layoutData) renderMatrix();
+    checkLastEntry();
+  } catch(e) {}
+}
+
+clock();
+fetchData();
+setInterval(clock, 1000);
+setInterval(fetchData, 3000);
+{% endblock %}

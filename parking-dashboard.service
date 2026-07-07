@@ -1,0 +1,17 @@
+[Unit]
+Description=Parking Dashboard Display
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=pablo
+WorkingDirectory=/home/pablo/ocr_python
+ExecStart=/home/pablo/ocr_python/start_dashboard.sh
+Restart=on-failure
+RestartSec=5
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pablo/.Xauthority
+
+[Install]
+WantedBy=multi-user.target

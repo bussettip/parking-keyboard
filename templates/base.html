@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Estacionamiento{% endblock %}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#fff;min-height:100vh;display:flex;flex-direction:column}
+header{background:#161b22;padding:20px 30px;border-bottom:2px solid #30363d;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
+header h1{font-size:1.8rem}
+header .info{text-align:right;font-size:0.9rem;color:#8b949e}
+header .info .time{font-size:1.1rem;color:#f0f6fc}
+.stats-bar{display:flex;gap:20px;padding:20px 30px;flex-wrap:wrap}
+.stat-card{background:#161b22;border-radius:12px;padding:20px 30px;flex:1;min-width:150px;text-align:center;border:1px solid #30363d}
+.stat-card .label{font-size:0.85rem;color:#8b949e;text-transform:uppercase;letter-spacing:1px}
+.stat-card .value{font-size:2.5rem;font-weight:700;margin-top:5px}
+.layout-wrap{padding:10px 30px 30px;flex:1;display:flex;flex-direction:column;align-items:center}
+.grid-title{font-size:1.1rem;color:#8b949e;margin-bottom:15px;text-align:center}
+.layout-grid{display:grid;gap:3px;width:100%;max-width:700px;margin:0 auto}
+.cell{border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:1;min-width:0;font-size:0.7rem;transition:all .3s}
+.cell.empty{background:transparent}
+.cell.path{background:#1e1e1e;border-radius:6px}
+.cell.spot{background:#161b22;border:2px solid #30363d;border-radius:10px;cursor:default}
+.cell.spot.available{border-color:#3fb950;background:#0d2818}
+.cell.spot.occupied{border-color:#f85149;background:#260e11}
+.cell.spot .num{font-size:1.1rem;font-weight:700;color:#f0f6fc;line-height:1.1}
+.cell.spot .status-text{font-size:0.6rem;font-weight:600;margin-top:2px}
+.cell.spot.available .status-text{color:#3fb950}
+.cell.spot.occupied .status-text{color:#f85149}
+.logo-wrap{display:flex;align-items:center}
+.logo-img{height:50px;width:auto;border-radius:6px}
+footer{background:#161b22;padding:15px 30px;text-align:center;color:#484f58;font-size:0.85rem;border-top:1px solid #30363d}
+{% block extra_style %}{% endblock %}
+</style>
+</head>
+<body>
+<header>
+  <h1>{% block header_title %}🅿 Estacionamiento{% endblock %}</h1>
+  <div class="info">
+    <div class="time" id="clock">--:--:--</div>
+    <div id="date">---</div>
+  </div>
+  <div class="logo-wrap">
+    <img src="/static/logo.svg" alt="Logo" class="logo-img">
+  </div>
+</header>
+
+{% block stats_bar %}{% endblock %}
+{% block main %}{% endblock %}
+
+<footer>{% block footer_content %}{% endblock %}</footer>
+
+<script>
+function clock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('es-MX', {hour12:false});
+  document.getElementById('date').textContent = now.toLocaleDateString('es-MX', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+}
+{% block scripts %}{% endblock %}
+</script>
+</body>
+</html>
