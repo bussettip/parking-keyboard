@@ -31,18 +31,5 @@ services:
       db:
         condition: service_healthy
 
-  caddy:
-    image: caddy:alpine
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-    depends_on:
-      - app
-
 volumes:
   mysql_data:
-  caddy_data:
