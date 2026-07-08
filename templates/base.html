@@ -30,6 +30,8 @@ header .info .time{font-size:1.1rem;color:#f0f6fc}
 .cell.spot.occupied .status-text{color:#f85149}
 .logo-wrap{display:flex;align-items:center}
 .logo-img{height:50px;width:auto;border-radius:6px}
+.admin-link{margin-left:12px;font-size:1.5rem;opacity:0.5;transition:opacity .2s;text-decoration:none}
+.admin-link:hover{opacity:1}
 footer{background:#161b22;padding:15px 30px;text-align:center;color:#484f58;font-size:0.85rem;border-top:1px solid #30363d}
 {% block extra_style %}{% endblock %}
 </style>
@@ -43,6 +45,7 @@ footer{background:#161b22;padding:15px 30px;text-align:center;color:#484f58;font
   </div>
   <div class="logo-wrap">
     <img src="/static/logo.svg" alt="Logo" class="logo-img">
+    <a href="/admin" class="admin-link" title="Panel de Administración">🔧</a>
   </div>
 </header>
 
