@@ -18,8 +18,8 @@ services:
   app:
     build: .
     restart: always
-    expose:
-      - "5100"
+    ports:
+      - "5100:5100"
     environment:
       DB_HOST: db
       DB_PORT: "3306"
@@ -31,18 +31,5 @@ services:
       db:
         condition: service_healthy
 
-  caddy:
-    image: caddy:alpine
-    restart: always
-    ports:
-      - "8081:80"
-      - "8443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-    depends_on:
-      - app
-
 volumes:
   mysql_data:
-  caddy_data:
