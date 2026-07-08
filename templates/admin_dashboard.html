@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin - Parking</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; display: flex; }
+.sidebar { width: 220px; background: #161b22; border-right: 1px solid #30363d; min-height: 100vh; padding: 20px 0; }
+.sidebar h2 { padding: 0 20px; font-size: 18px; margin-bottom: 20px; color: #f0f6fc; }
+.sidebar a { display: block; padding: 10px 20px; color: #8b949e; text-decoration: none; font-size: 14px; }
+.sidebar a:hover, .sidebar a.active { background: #1f2937; color: #f0f6fc; }
+.main { flex: 1; padding: 30px; }
+h1 { font-size: 24px; margin-bottom: 24px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 30px; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; }
+.card h3 { font-size: 13px; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; }
+.card .val { font-size: 28px; font-weight: 600; }
+.revenue { color: #d2a8ff; }
+table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #30363d; font-size: 13px; }
+th { color: #8b949e; font-weight: 600; text-transform: uppercase; font-size: 11px; }
+.status-active { color: #f0883e; font-weight: 600; }
+.status-completed { color: #3fb950; }
+a { color: #58a6ff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.error { background: #3d1f1f; border: 1px solid #f85149; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+<h2>Parking Admin</h2>
+<a href="/admin" class="active">Dashboard</a>
+<a href="/admin/records">Registros</a>
+<a href="/admin/cuts">Cortes de Caja</a>
+<a href="/admin/config">Configuración</a>
+<a href="/admin/event-log">Event Log</a>
+<a href="/admin/logout" style="margin-top:30px;color:#f85149;">Cerrar Sesión</a>
+</div>
+<div class="main">
+<h1>Dashboard</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<div class="stats">
+<div class="card"><h3>Lugares Disponibles</h3><div class="val">{{ available }}</div></div>
+<div class="card"><h3>Vehículos Activos</h3><div class="val">{{ active_records }}</div></div>
+<div class="card"><h3>Total Registros</h3><div class="val">{{ total_records }}</div></div>
+{% if revenue %}
+<div class="card"><h3>Recaudado Hoy</h3><div class="val revenue">${{ "%.2f"|format(revenue.today) }}</div></div>
+<div class="card"><h3>Esta Semana</h3><div class="val revenue">${{ "%.2f"|format(revenue.week) }}</div></div>
+<div class="card"><h3>Este Mes</h3><div class="val revenue">${{ "%.2f"|format(revenue.month) }}</div></div>
+{% endif %}
+</div>
+
+<h2 style="margin-bottom:12px;">Últimos Registros</h2>
+<table>
+<thead><tr><th>ID</th><th>Placa</th><th>Lugar</th><th>Entrada</th><th>Salida</th><th>Total</th><th>Status</th></tr></thead>
+<tbody>
+{% for r in last_records %}
+<tr>
+<td>{{ r.id }}</td>
+<td>{{ r.plate_number }}</td>
+<td>{{ r.spot_number }}</td>
+<td>{{ r.entry_time.strftime("%Y-%m-%d %H:%M") if r.entry_time else "" }}</td>
+<td>{{ r.exit_time.strftime("%Y-%m-%d %H:%M") if r.exit_time else "" }}</td>
+<td>${{ "%.2f"|format(r.total_amount or 0) }}</td>
+<td class="status-{{ r.status }}">{{ r.status }}</td>
+</tr>
+{% else %}
+<tr><td colspan="7" style="text-align:center;color:#8b949e;">Sin registros</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</body>
+</html>

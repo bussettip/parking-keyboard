@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Log - Parking Admin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; display: flex; }
+.sidebar { width: 220px; background: #161b22; border-right: 1px solid #30363d; min-height: 100vh; padding: 20px 0; }
+.sidebar h2 { padding: 0 20px; font-size: 18px; margin-bottom: 20px; color: #f0f6fc; }
+.sidebar a { display: block; padding: 10px 20px; color: #8b949e; text-decoration: none; font-size: 14px; }
+.sidebar a:hover, .sidebar a.active { background: #1f2937; color: #f0f6fc; }
+.main { flex: 1; padding: 30px; }
+h1 { font-size: 24px; margin-bottom: 24px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #30363d; font-size: 13px; }
+th { color: #8b949e; text-transform: uppercase; font-size: 11px; }
+.event-entry { color: #58a6ff; }
+.event-exit { color: #3fb950; }
+.event-error { color: #f85149; }
+.event-alert { color: #f0883e; }
+a { color: #58a6ff; text-decoration: none; }
+.error { background: #3d1f1f; border: 1px solid #f85149; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+<h2>Parking Admin</h2>
+<a href="/admin">Dashboard</a>
+<a href="/admin/records">Registros</a>
+<a href="/admin/cuts">Cortes de Caja</a>
+<a href="/admin/config">Configuración</a>
+<a href="/admin/event-log" class="active">Event Log</a>
+<a href="/admin/logout" style="margin-top:30px;color:#f85149;">Cerrar Sesión</a>
+</div>
+<div class="main">
+<h1>Event Log (últimos 200)</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<table>
+<thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Detalles</th><th>Fecha</th></tr></thead>
+<tbody>
+{% for e in events %}
+<tr>
+<td>{{ e.id }}</td>
+<td>{{ e.plate_number or "" }}</td>
+<td class="event-{{ e.event_type }}">{{ e.event_type }}</td>
+<td>{{ e.details or "" }}</td>
+<td>{{ e.created_at.strftime("%Y-%m-%d %H:%M:%S") if e.created_at else "" }}</td>
+</tr>
+{% else %}
+<tr><td colspan="5" style="text-align:center;color:#8b949e;">Sin eventos</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</body>
+</html>

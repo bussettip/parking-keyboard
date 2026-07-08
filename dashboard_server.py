@@ -8,7 +8,8 @@ import sys
 import json
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for
+from functools import wraps
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
@@ -20,6 +21,9 @@ DB_NAME = os.getenv("DB_NAME", "parking_db")
 DB_USER = os.getenv("DB_USER", "ocr_user")
 DB_PASS = os.getenv("DB_PASS", "123456")
 DB_PORT = int(os.getenv("DB_PORT", "3306"))
+
+app.secret_key = os.getenv("SECRET_KEY", "parking-secret-key-change-me")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
 
 def get_db():
@@ -322,6 +326,153 @@ def ticket_page(record_id):
 @app.route("/")
 def index():
     return render_template(f"{MODE}.html", mode=MODE)
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("admin_logged_in"):
+            return redirect(url_for("admin_login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        if request.form.get("password") == ADMIN_PASSWORD:
+            session["admin_logged_in"] = True
+            return redirect(url_for("admin_dashboard"))
+        return render_template("admin_login.html", error="Contraseña incorrecta")
+    return render_template("admin_login.html")
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin_logged_in", None)
+    return redirect(url_for("admin_login"))
+
+
+@app.route("/admin")
+@login_required
+def admin_dashboard():
+    try:
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT COUNT(*) AS total FROM parking_records")
+        total_records = cur.fetchone()["total"]
+        cur.execute("SELECT COUNT(*) AS active FROM parking_records WHERE status='active'")
+        active_records = cur.fetchone()["active"]
+        cur.execute("SELECT COUNT(*) AS available FROM parking_spots WHERE status='available'")
+        available = cur.fetchone()["available"]
+        rev = get_revenue()
+        last_records = []
+        cur.execute("""
+            SELECT r.id, r.plate_number, s.spot_number, r.entry_time, r.exit_time, r.total_amount, r.status
+            FROM parking_records r
+            JOIN parking_spots s ON r.spot_id = s.id
+            ORDER BY r.created_at DESC LIMIT 20
+        """)
+        last_records = cur.fetchall()
+        conn.close()
+        return render_template("admin_dashboard.html", total_records=total_records,
+                               active_records=active_records, available=available, revenue=rev,
+                               last_records=last_records)
+    except Exception as e:
+        return render_template("admin_dashboard.html", error=str(e))
+
+
+@app.route("/admin/records")
+@login_required
+def admin_records():
+    try:
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT r.id, r.plate_number, s.spot_number, r.entry_time, r.exit_time,
+                   r.duration_minutes, r.total_amount, r.status
+            FROM parking_records r
+            JOIN parking_spots s ON r.spot_id = s.id
+            ORDER BY r.created_at DESC LIMIT 200
+        """)
+        records = cur.fetchall()
+        conn.close()
+        return render_template("admin_records.html", records=records)
+    except Exception as e:
+        return render_template("admin_records.html", error=str(e))
+
+
+@app.route("/admin/cuts")
+@login_required
+def admin_cuts():
+    try:
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM revenue_cuts ORDER BY created_at DESC LIMIT 50")
+        cuts = cur.fetchall()
+        conn.close()
+        return render_template("admin_cuts.html", cuts=cuts)
+    except Exception as e:
+        return render_template("admin_cuts.html", error=str(e))
+
+
+@app.route("/admin/corte", methods=["POST"])
+@login_required
+def admin_corte():
+    try:
+        from datetime import datetime
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("""
+            SELECT
+                COALESCE(SUM(CASE WHEN DATE(exit_time) = CURDATE() THEN total_amount ELSE 0 END), 0) AS today,
+                COALESCE(SUM(CASE WHEN YEARWEEK(exit_time) = YEARWEEK(CURDATE()) THEN total_amount ELSE 0 END), 0) AS week,
+                COALESCE(SUM(CASE WHEN MONTH(exit_time) = MONTH(CURDATE()) AND YEAR(exit_time) = YEAR(CURDATE()) THEN total_amount ELSE 0 END), 0) AS month
+            FROM parking_records WHERE status = 'completed'
+        """)
+        r = cur.fetchone()
+        cur.execute("INSERT INTO revenue_cuts (today, week, month, created_at) VALUES (%s, %s, %s, %s)",
+                    (r["today"], r["week"], r["month"], datetime.now()))
+        conn.commit()
+        conn.close()
+        return redirect(url_for("admin_cuts"))
+    except Exception as e:
+        return render_template("admin_cuts.html", error=str(e))
+
+
+@app.route("/admin/config", methods=["GET", "POST"])
+@login_required
+def admin_config():
+    try:
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        if request.method == "POST":
+            rate = float(request.form.get("hourly_rate", 50))
+            max_rate = float(request.form.get("max_daily_rate", 200))
+            grace = int(request.form.get("grace_period_minutes", 15))
+            cur.execute("UPDATE pricing_config SET hourly_rate=%s, max_daily_rate=%s, grace_period_minutes=%s",
+                        (rate, max_rate, grace))
+            conn.commit()
+        cur.execute("SELECT * FROM pricing_config LIMIT 1")
+        cfg = cur.fetchone()
+        conn.close()
+        return render_template("admin_config.html", config=cfg)
+    except Exception as e:
+        return render_template("admin_config.html", error=str(e))
+
+
+@app.route("/admin/event-log")
+@login_required
+def admin_event_log():
+    try:
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM event_log ORDER BY created_at DESC LIMIT 200")
+        events = cur.fetchall()
+        conn.close()
+        return render_template("admin_event_log.html", events=events)
+    except Exception as e:
+        return render_template("admin_event_log.html", error=str(e))
 
 
 def init_db():

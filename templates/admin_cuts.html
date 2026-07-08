@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cortes de Caja - Parking Admin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; display: flex; }
+.sidebar { width: 220px; background: #161b22; border-right: 1px solid #30363d; min-height: 100vh; padding: 20px 0; }
+.sidebar h2 { padding: 0 20px; font-size: 18px; margin-bottom: 20px; color: #f0f6fc; }
+.sidebar a { display: block; padding: 10px 20px; color: #8b949e; text-decoration: none; font-size: 14px; }
+.sidebar a:hover, a.active { background: #1f2937; color: #f0f6fc; }
+.main { flex: 1; padding: 30px; }
+h1 { font-size: 24px; margin-bottom: 24px; }
+button { padding: 10px 20px; background: #238636; border: none; border-radius: 6px; color: #fff; font-size: 14px; cursor: pointer; margin-bottom: 20px; }
+button:hover { background: #2ea043; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #30363d; font-size: 13px; }
+th { color: #8b949e; text-transform: uppercase; font-size: 11px; }
+.revenue { color: #d2a8ff; }
+a { color: #58a6ff; text-decoration: none; }
+.error { background: #3d1f1f; border: 1px solid #f85149; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+<h2>Parking Admin</h2>
+<a href="/admin">Dashboard</a>
+<a href="/admin/records">Registros</a>
+<a href="/admin/cuts" class="active">Cortes de Caja</a>
+<a href="/admin/config">Configuración</a>
+<a href="/admin/event-log">Event Log</a>
+<a href="/admin/logout" style="margin-top:30px;color:#f85149;">Cerrar Sesión</a>
+</div>
+<div class="main">
+<h1>Cortes de Caja</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" action="/admin/corte">
+<button type="submit">Generar Nuevo Corte</button>
+</form>
+<table>
+<thead><tr><th>ID</th><th>Fecha</th><th>Hoy</th><th>Semana</th><th>Mes</th></tr></thead>
+<tbody>
+{% for c in cuts %}
+<tr>
+<td>{{ c.id }}</td>
+<td>{{ c.created_at.strftime("%Y-%m-%d %H:%M") if c.created_at else "" }}</td>
+<td class="revenue">${{ "%.2f"|format(c.today) }}</td>
+<td class="revenue">${{ "%.2f"|format(c.week) }}</td>
+<td class="revenue">${{ "%.2f"|format(c.month) }}</td>
+</tr>
+{% else %}
+<tr><td colspan="5" style="text-align:center;color:#8b949e;">Sin cortes registrados</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</body>
+</html>

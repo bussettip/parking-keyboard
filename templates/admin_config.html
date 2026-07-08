@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuración - Parking Admin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; display: flex; }
+.sidebar { width: 220px; background: #161b22; border-right: 1px solid #30363d; min-height: 100vh; padding: 20px 0; }
+.sidebar h2 { padding: 0 20px; font-size: 18px; margin-bottom: 20px; color: #f0f6fc; }
+.sidebar a { display: block; padding: 10px 20px; color: #8b949e; text-decoration: none; font-size: 14px; }
+.sidebar a:hover, .sidebar a.active { background: #1f2937; color: #f0f6fc; }
+.main { flex: 1; padding: 30px; }
+h1 { font-size: 24px; margin-bottom: 24px; }
+.form-group { margin-bottom: 20px; }
+label { display: block; margin-bottom: 6px; font-size: 14px; color: #8b949e; }
+input[type="number"] { width: 100%; max-width: 300px; padding: 10px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 14px; }
+button { padding: 10px 24px; background: #238636; border: none; border-radius: 6px; color: #fff; font-size: 14px; cursor: pointer; }
+button:hover { background: #2ea043; }
+.success { background: #1f3d1f; border: 1px solid #3fb950; border-radius: 6px; padding: 12px; margin-bottom: 16px; color: #3fb950; }
+.error { background: #3d1f1f; border: 1px solid #f85149; border-radius: 6px; padding: 12px; margin-bottom: 16px; }
+a { color: #58a6ff; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+<h2>Parking Admin</h2>
+<a href="/admin">Dashboard</a>
+<a href="/admin/records">Registros</a>
+<a href="/admin/cuts">Cortes de Caja</a>
+<a href="/admin/config" class="active">Configuración</a>
+<a href="/admin/event-log">Event Log</a>
+<a href="/admin/logout" style="margin-top:30px;color:#f85149;">Cerrar Sesión</a>
+</div>
+<div class="main">
+<h1>Configuración de Precios</h1>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if request.method == "POST" and not error %}
+<div class="success">Configuración guardada</div>
+{% endif %}
+<form method="post">
+<div class="form-group">
+<label for="hourly_rate">Tarifa por Hora ($)</label>
+<input type="number" step="0.01" min="0" name="hourly_rate" id="hourly_rate" value="{{ config.hourly_rate if config else 50 }}" required>
+</div>
+<div class="form-group">
+<label for="max_daily_rate">Tarifa Máxima por Día ($)</label>
+<input type="number" step="0.01" min="0" name="max_daily_rate" id="max_daily_rate" value="{{ config.max_daily_rate if config else 200 }}" required>
+</div>
+<div class="form-group">
+<label for="grace_period_minutes">Período de Gracia (minutos)</label>
+<input type="number" min="0" name="grace_period_minutes" id="grace_period_minutes" value="{{ config.grace_period_minutes if config else 15 }}" required>
+</div>
+<button type="submit">Guardar</button>
+</form>
+</div>
+</body>
+</html>
