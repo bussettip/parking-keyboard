@@ -1,0 +1,3 @@
+parking.bussettip.com.mx {
+    reverse_proxy app:5100
+}
