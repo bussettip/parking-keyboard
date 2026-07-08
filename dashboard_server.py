@@ -340,7 +340,7 @@ def init_db():
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 spot_number INT UNIQUE NOT NULL,
                 status ENUM('available', 'occupied') DEFAULT 'available',
-                row_number INT DEFAULT 1,
+                `row_number` INT DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
             cur.execute("""CREATE TABLE IF NOT EXISTS parking_records (
@@ -376,7 +376,7 @@ def init_db():
             cur.execute("INSERT IGNORE INTO pricing_config (hourly_rate, max_daily_rate) VALUES (50.00, 200.00)")
             for i in range(1, 13):
                 rn = 1 if i <= 6 else 2
-                cur.execute("INSERT IGNORE INTO parking_spots (id, spot_number, row_number) VALUES (%s, %s, %s)", (i, i, rn))
+                cur.execute("INSERT IGNORE INTO parking_spots (id, spot_number, `row_number`) VALUES (%s, %s, %s)", (i, i, rn))
             conn.commit()
             conn.close()
             print("[DB] Tablas creadas/verificadas")
